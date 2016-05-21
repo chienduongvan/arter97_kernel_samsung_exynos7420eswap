@@ -531,8 +531,17 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
 	unsigned long flags;
 	struct kmemleak_object *object, *parent;
 	struct rb_node **link, *rb_parent;
+	int i = 0;
 
-	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
+	while (i < 10) {
+		object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
+		if (!object) {
+			pr_warning("Trying again to allocate a kmemleak_object structure\n");
+			msleep(50);
+		} else
+			break;
+		i++;
+	}
 	if (!object) {
 		pr_warning("Cannot allocate a kmemleak_object structure\n");
 		kmemleak_disable();
