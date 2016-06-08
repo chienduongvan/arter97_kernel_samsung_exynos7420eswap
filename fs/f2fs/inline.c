@@ -277,8 +277,7 @@ process_inline:
 }
 
 struct f2fs_dir_entry *find_in_inline_dir(struct inode *dir,
-			struct fscrypt_name *fname, struct page **res_page,
-			unsigned int flags)
+			struct fscrypt_name *fname, struct page **res_page)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
 	struct f2fs_inline_dentry *inline_dentry;
@@ -289,15 +288,17 @@ struct f2fs_dir_entry *find_in_inline_dir(struct inode *dir,
 	f2fs_hash_t namehash;
 
 	ipage = get_node_page(sbi, dir->i_ino);
-	if (IS_ERR(ipage))
+	if (IS_ERR(ipage)) {
+		*res_page = ipage;
 		return NULL;
+	}
 
 	namehash = f2fs_dentry_hash(&name);
 
 	inline_dentry = inline_data_addr(ipage);
 
 	make_dentry_ptr(NULL, &d, (void *)inline_dentry, 2);
-	de = find_target_dentry(fname, namehash, NULL, &d, flags);
+	de = find_target_dentry(fname, namehash, NULL, &d);
 	unlock_page(ipage);
 	if (de)
 		*res_page = ipage;
@@ -406,8 +407,9 @@ static int f2fs_convert_inline_dir(struct inode *dir, struct page *ipage,
 	stat_dec_inline_dir(dir);
 	clear_inode_flag(F2FS_I(dir), FI_INLINE_DENTRY);
 
-	if (i_size_read(dir) < PAGE_CACHE_SIZE) {
-		i_size_write(dir, PAGE_CACHE_SIZE);
+	F2FS_I(dir)->i_current_depth = 1;
+	if (i_size_read(dir) < PAGE_SIZE) {
+		i_size_write(dir, PAGE_SIZE);
 		set_inode_flag(F2FS_I(dir), FI_UPDATE_DIR);
 	}
 

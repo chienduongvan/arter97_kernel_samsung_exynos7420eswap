@@ -226,20 +226,25 @@ static int __recover_dot_dentries(struct inode *dir, nid_t pino)
 
 	f2fs_lock_op(sbi);
 
-	de = f2fs_find_entry(dir, &dot, &page, 0);
+	de = f2fs_find_entry(dir, &dot, &page);
 	if (de) {
 		f2fs_dentry_kunmap(dir, page);
 		f2fs_put_page(page, 0);
+	} else if (IS_ERR(page)) {
+		err = PTR_ERR(page);
+		goto out;
 	} else {
 		err = __f2fs_add_link(dir, &dot, NULL, dir->i_ino, S_IFDIR);
 		if (err)
 			goto out;
 	}
 
-	de = f2fs_find_entry(dir, &dotdot, &page, 0);
+	de = f2fs_find_entry(dir, &dotdot, &page);
 	if (de) {
 		f2fs_dentry_kunmap(dir, page);
 		f2fs_put_page(page, 0);
+	} else if (IS_ERR(page)) {
+		err = PTR_ERR(page);
 	} else {
 		err = __f2fs_add_link(dir, &dotdot, NULL, pino, S_IFDIR);
 	}
@@ -281,9 +286,12 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 	if (dentry->d_name.len > F2FS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	de = f2fs_find_entry(dir, &dentry->d_name, &page, flags);
-	if (!de)
+	de = f2fs_find_entry(dir, &dentry->d_name, &page);
+	if (!de) {
+		if (IS_ERR(page))
+			return (struct dentry *)page;
 		return d_splice_alias(inode, dentry);
+	}
 
 	ino = le32_to_cpu(de->ino);
 	f2fs_dentry_kunmap(dir, page);
@@ -329,7 +337,7 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 
 	trace_f2fs_unlink_enter(dir, dentry);
 
-	de = f2fs_find_entry(dir, &dentry->d_name, &page, 0);
+	de = f2fs_find_entry(dir, &dentry->d_name, &page);
 	if (!de)
 		goto fail;
 
@@ -588,7 +596,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto out;
 	}
 
-	old_entry = f2fs_find_entry(old_dir, &old_dentry->d_name, &old_page, 0);
+	old_entry = f2fs_find_entry(old_dir, &old_dentry->d_name, &old_page);
 	if (!old_entry)
 		goto out;
 
@@ -607,7 +615,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 		err = -ENOENT;
 		new_entry = f2fs_find_entry(new_dir, &new_dentry->d_name,
-						&new_page, 0);
+						&new_page);
 		if (!new_entry)
 			goto out_dir;
 
@@ -672,7 +680,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			old_page = NULL;
 
 			old_entry = f2fs_find_entry(old_dir,
-						&old_dentry->d_name, &old_page, 0);
+						&old_dentry->d_name, &old_page);
 			if (!old_entry) {
 				err = -EIO;
 				f2fs_unlock_op(sbi);
