@@ -579,6 +579,7 @@ struct flush_cmd {
 struct flush_cmd_control {
 	struct task_struct *f2fs_issue_flush;	/* flush thread */
 	wait_queue_head_t flush_wait_queue;	/* waiting queue for wake-up */
+	atomic_t submit_flush;			/* # of issued flushes */
 	struct llist_head issue_list;		/* list for command issue */
 	struct llist_node *dispatch_list;	/* list for command dispatch */
 };
@@ -735,7 +736,6 @@ struct f2fs_sb_info {
 	struct mutex cp_mutex;			/* checkpoint procedure lock */
 	struct rw_semaphore cp_rwsem;		/* blocking FS operations */
 	struct rw_semaphore node_write;		/* locking node writes */
-	struct mutex writepages;		/* mutex for writepages() */
 	wait_queue_head_t cp_wait;
 	unsigned long last_time[MAX_TIME];	/* to store time in jiffies */
 	long interval_time[MAX_TIME];		/* to store thresholds */
@@ -1091,20 +1091,25 @@ static inline bool f2fs_has_xattr_block(unsigned int ofs)
 }
 
 static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
-				 struct inode *inode, blkcnt_t count)
+				 struct inode *inode, blkcnt_t *count)
 {
 	block_t	valid_block_count;
 
 	spin_lock(&sbi->stat_lock);
 	valid_block_count =
-		sbi->total_valid_block_count + (block_t)count;
+		sbi->total_valid_block_count + (block_t)(*count);
 	if (unlikely(valid_block_count > sbi->user_block_count)) {
-		spin_unlock(&sbi->stat_lock);
-		return false;
+		*count = sbi->user_block_count - sbi->total_valid_block_count;
+		if (!*count) {
+			spin_unlock(&sbi->stat_lock);
+			return false;
+		}
 	}
-	inode->i_blocks += count;
-	sbi->total_valid_block_count = valid_block_count;
-	sbi->alloc_valid_block_count += (block_t)count;
+	/* *count can be recalculated */
+	inode->i_blocks += *count;
+	sbi->total_valid_block_count =
+		sbi->total_valid_block_count + (block_t)(*count);
+	sbi->alloc_valid_block_count += (block_t)(*count);
 	spin_unlock(&sbi->stat_lock);
 	return true;
 }
@@ -1471,7 +1476,6 @@ enum {
 	FI_NO_ALLOC,		/* should not allocate any blocks */
 	FI_FREE_NID,		/* free allocated nide */
 	FI_UPDATE_DIR,		/* should update inode block for consistency */
-	FI_DELAY_IPUT,		/* used for the recovery */
 	FI_NO_EXTENT,		/* not to use the extent cache */
 	FI_INLINE_XATTR,	/* used for inline xattr */
 	FI_INLINE_DATA,		/* used for inline data*/
@@ -1757,8 +1761,7 @@ struct dentry *f2fs_get_parent(struct dentry *child);
 extern unsigned char f2fs_filetype_table[F2FS_FT_MAX];
 void set_de_type(struct f2fs_dir_entry *, umode_t);
 struct f2fs_dir_entry *find_target_dentry(struct fscrypt_name *,
-			f2fs_hash_t, int *, struct f2fs_dentry_ptr *,
-			unsigned int flags);
+			f2fs_hash_t, int *, struct f2fs_dentry_ptr *);
 bool f2fs_fill_dentries(struct file *, void *, filldir_t,
 			struct f2fs_dentry_ptr *, unsigned int,
 			unsigned int, struct fscrypt_str *);
@@ -1770,7 +1773,7 @@ void update_parent_metadata(struct inode *, struct inode *, unsigned int);
 int room_for_filename(const void *, int, int);
 void f2fs_drop_nlink(struct inode *, struct inode *, struct page *);
 struct f2fs_dir_entry *f2fs_find_entry(struct inode *, struct qstr *,
-					struct page **, unsigned int flags);
+					struct page **);
 struct f2fs_dir_entry *f2fs_parent_dir(struct inode *, struct page **);
 ino_t f2fs_inode_by_name(struct inode *, struct qstr *);
 void f2fs_set_link(struct inode *, struct f2fs_dir_entry *,
@@ -1908,7 +1911,6 @@ void remove_orphan_inode(struct f2fs_sb_info *, nid_t);
 int recover_orphan_inodes(struct f2fs_sb_info *);
 int get_valid_checkpoint(struct f2fs_sb_info *);
 void update_dirty_page(struct inode *, struct page *);
-void add_dirty_dir_inode(struct inode *);
 void remove_dirty_inode(struct inode *);
 int sync_dirty_inodes(struct f2fs_sb_info *, enum inode_type);
 int write_checkpoint(struct f2fs_sb_info *, struct cp_control *);
@@ -1927,6 +1929,7 @@ int f2fs_submit_page_bio(struct f2fs_io_info *);
 void f2fs_submit_page_mbio(struct f2fs_io_info *);
 void set_data_blkaddr(struct dnode_of_data *);
 void f2fs_update_data_blkaddr(struct dnode_of_data *, block_t);
+int reserve_new_blocks(struct dnode_of_data *, blkcnt_t);
 int reserve_new_block(struct dnode_of_data *);
 int f2fs_get_block(struct dnode_of_data *, pgoff_t);
 ssize_t f2fs_preallocate_blocks(struct inode *, loff_t, size_t, bool);
@@ -2137,7 +2140,7 @@ int f2fs_convert_inline_inode(struct inode *);
 int f2fs_write_inline_data(struct inode *, struct page *);
 bool recover_inline_data(struct inode *, struct page *);
 struct f2fs_dir_entry *find_in_inline_dir(struct inode *,
-			struct fscrypt_name *, struct page **, unsigned int flags);
+			struct fscrypt_name *, struct page **);
 struct f2fs_dir_entry *f2fs_parent_inline_dir(struct inode *, struct page **);
 int make_empty_inline_dir(struct inode *inode, struct inode *, struct page *);
 int f2fs_add_inline_entry(struct inode *, const struct qstr *, struct inode *,
