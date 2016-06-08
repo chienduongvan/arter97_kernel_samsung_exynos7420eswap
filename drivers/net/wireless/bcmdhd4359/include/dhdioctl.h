@@ -5,7 +5,7 @@
  *
  * Definitions subject to change without notice.
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -28,7 +28,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhdioctl.h 559033 2015-05-26 13:13:41Z $
+ * $Id: dhdioctl.h 585723 2015-09-11 06:26:37Z $
  */
 
 #ifndef _dhdioctl_h_
@@ -99,6 +99,7 @@ enum {
 #define DHD_MSGTRACE_VAL	0x100000
 #define DHD_FWLOG_VAL		0x400000
 #define DHD_RTT_VAL		0x200000
+#define DHD_IOV_INFO_VAL	0x800000
 
 #ifdef SDTEST
 /* For pktgen iovar */

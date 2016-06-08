@@ -39,6 +39,9 @@
 #include <linux/ratelimit.h>
 #include "internal.h"
 #include "mount.h"
+#ifdef CONFIG_RKP_NS_PROT
+u8 ns_prot = 0;
+#endif
 
 /*
  * Usage:
@@ -820,12 +823,11 @@ static void shrink_dentry_list(struct list_head *list)
  * This function may fail to free any resources if all the dentries are in
  * use.
  */
-long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan)
+void prune_dcache_sb(struct super_block *sb, int count)
 {
 	struct dentry *dentry;
 	LIST_HEAD(referenced);
 	LIST_HEAD(tmp);
-	long freed = 0;
 
 relock:
 	spin_lock(&dcache_lru_lock);
@@ -848,8 +850,7 @@ relock:
 			list_move_tail(&dentry->d_lru, &tmp);
 			dentry->d_flags |= DCACHE_SHRINK_LIST;
 			spin_unlock(&dentry->d_lock);
-			freed++;
-			if (!--nr_to_scan)
+			if (!--count)
 				break;
 		}
 		cond_resched_lock(&dcache_lru_lock);
@@ -859,7 +860,6 @@ relock:
 	spin_unlock(&dcache_lru_lock);
 
 	shrink_dentry_list(&tmp);
-	return freed;
 }
 
 /**
@@ -2559,7 +2559,11 @@ static int prepend_path(const struct path *path,
 				goto global_root;
 			dentry = mnt->mnt_mountpoint;
 			mnt = mnt->mnt_parent;
+#ifdef CONFIG_RKP_NS_PROT
+			vfsmnt = mnt->mnt;
+#else
 			vfsmnt = &mnt->mnt;
+#endif
 			continue;
 		}
 		parent = dentry->d_parent;
@@ -3138,4 +3142,7 @@ void __init vfs_caches_init(unsigned long mempages)
 	mnt_init();
 	bdev_cache_init();
 	chrdev_init();
+#ifdef CONFIG_RKP_NS_PROT
+	ns_prot = 1;
+#endif
 }

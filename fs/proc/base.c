@@ -200,41 +200,9 @@ static int proc_root_link(struct dentry *dentry, struct path *path)
 	return result;
 }
 
-static int proc_pid_cmdline(struct task_struct *task, char * buffer)
+static int proc_pid_cmdline(struct task_struct *task, char *buffer)
 {
-	int res = 0;
-	unsigned int len;
-	struct mm_struct *mm = get_task_mm(task);
-	if (!mm)
-		goto out;
-	if (!mm->arg_end)
-		goto out_mm;	/* Shh! No looking before we're done */
-
- 	len = mm->arg_end - mm->arg_start;
- 
-	if (len > PAGE_SIZE)
-		len = PAGE_SIZE;
- 
-	res = access_process_vm(task, mm->arg_start, buffer, len, 0);
-
-	// If the nul at the end of args has been overwritten, then
-	// assume application is using setproctitle(3).
-	if (res > 0 && buffer[res-1] != '\0' && len < PAGE_SIZE) {
-		len = strnlen(buffer, res);
-		if (len < res) {
-		    res = len;
-		} else {
-			len = mm->env_end - mm->env_start;
-			if (len > PAGE_SIZE - res)
-				len = PAGE_SIZE - res;
-			res += access_process_vm(task, mm->env_start, buffer+res, len, 0);
-			res = strnlen(buffer, res);
-		}
-	}
-out_mm:
-	mmput(mm);
-out:
-	return res;
+	return get_cmdline(task, buffer, PAGE_SIZE);
 }
 
 static int proc_pid_auxv(struct task_struct *task, char *buffer)
@@ -899,6 +867,138 @@ static const struct file_operations proc_environ_operations = {
 	.release	= mem_release,
 };
 
+#ifdef CONFIG_FG_BG_CPUSET_OOM_ADJ
+int global_attach_task_by_pid(struct cgroup *cgrp, u64 pid, bool threadgroup);
+static inline int oom_score_adj_to_oom_adj(int oom_score_adj);
+static struct cgroup *fg_cgrp = NULL;
+static struct cgroup *bg_cgrp = NULL;
+static struct cgroup *inv_cgrp = NULL;
+struct cpuset_work_struct {
+	struct work_struct worker;
+	/*
+	 * 0 : foreground
+	 * 1 : background
+	 * 2 : invisible
+	 */
+	int    cgrp_level;
+	int    pid;
+} cpuset_work_struct;
+struct cpuset_work_struct *cpuset_work = NULL;
+static DEFINE_MUTEX(cpuset_work_lock);
+
+static void cpuset_attach(struct work_struct *work)
+{
+	struct cpuset_work_struct *cpuset_worker =
+		container_of(work, struct cpuset_work_struct, worker);
+
+	mutex_lock(&cpuset_work_lock);
+	switch (cpuset_worker->cgrp_level) {
+	case 0:
+		global_attach_task_by_pid(fg_cgrp, cpuset_worker->pid, false);
+		break;
+	case 1:
+		global_attach_task_by_pid(bg_cgrp, cpuset_worker->pid, false);
+		break;
+	case 2:
+		global_attach_task_by_pid(inv_cgrp, cpuset_worker->pid, false);
+		break;
+	default:
+		/* unimplemented */
+		break;
+	}
+	mutex_unlock(&cpuset_work_lock);
+}
+
+static int __init init_cpuset(void)
+{
+	cpuset_work = kmalloc(sizeof(*cpuset_work), GFP_KERNEL);
+	INIT_WORK(&cpuset_work->worker, cpuset_attach);
+
+	return 0;
+}
+rootfs_initcall(init_cpuset);
+
+static inline void oom_adj_apply_to_cpusets(struct task_struct *tsk, int oom_score_adj)
+{
+	int oom_adj = oom_score_adj_to_oom_adj(oom_score_adj);
+	int cgrp_level = 0;
+
+	/* hardcode invisible oom_adj to be 1 for now
+	   user is using invisible mode if inv_cgrp is not NULL */
+	if (inv_cgrp != NULL && oom_adj > 1)
+		cgrp_level = 2;
+	if (oom_adj >= CONFIG_FG_BG_THRESHOLD)
+		cgrp_level = 1;
+
+#ifdef CONFIG_FG_BG_CPUSET_OOM_ADJ_DEBUG
+	switch (cgrp_level) {
+	case 0:
+		pr_info("cpuset: moving%6d(oom_adj:%3d)('%s') to the foreground\n",
+			tsk->pid, oom_adj, tsk->comm);
+		break;
+	case 1:
+		pr_info("cpuset: moving%6d(oom_adj:%3d)('%s') to the background\n",
+			tsk->pid, oom_adj, tsk->comm);
+		break;
+	case 2:
+		pr_info("cpuset: moving%6d(oom_adj:%3d)('%s') to the invisible\n",
+			tsk->pid, oom_adj, tsk->comm);
+		break;
+	default:
+		/* unimplemented */
+		break;
+	}
+#endif
+
+	if (fg_cgrp == NULL || bg_cgrp == NULL) {
+		/* this would also catch init_cpuset not being called yet */
+		pr_err("cpuset: cgrp is NULL!\n");
+	} else {
+		cpuset_work->cgrp_level = cgrp_level;
+		cpuset_work->pid = tsk->pid;
+		schedule_work_on(0, &cpuset_work->worker);
+	}
+}
+
+void set_cgrp(struct cgroup *cgrp, int cgrp_level)
+{
+	switch (cgrp_level) {
+	case 0:
+		if (fg_cgrp == NULL)
+			fg_cgrp = cgrp;
+		break;
+	case 1:
+		if (bg_cgrp == NULL)
+			bg_cgrp = cgrp;
+		break;
+	case 2:
+		if (inv_cgrp == NULL)
+			inv_cgrp = cgrp;
+		break;
+	default:
+		/* unimplemented */
+		break;
+	}
+}
+#endif
+
+static inline int oom_score_adj_to_oom_adj(int oom_score_adj)
+{
+	int mult = 1, oom_adj;
+
+	if (oom_score_adj == OOM_SCORE_ADJ_MAX) {
+		oom_adj = OOM_ADJUST_MAX;
+	} else {
+		if (oom_score_adj < 0)
+			mult = -1;
+		oom_adj = roundup(mult * oom_score_adj *
+			-OOM_DISABLE, OOM_SCORE_ADJ_MAX) /
+			OOM_SCORE_ADJ_MAX * mult;
+	}
+
+	return oom_adj;
+}
+
 static ssize_t oom_adj_read(struct file *file, char __user *buf, size_t count,
 			    loff_t *ppos)
 {
@@ -907,20 +1007,11 @@ static ssize_t oom_adj_read(struct file *file, char __user *buf, size_t count,
 	int oom_adj = OOM_ADJUST_MIN;
 	size_t len;
 	unsigned long flags;
-	int mult = 1;
 
 	if (!task)
 		return -ESRCH;
 	if (lock_task_sighand(task, &flags)) {
-		if (task->signal->oom_score_adj == OOM_SCORE_ADJ_MAX) {
-			oom_adj = OOM_ADJUST_MAX;
-		} else {
-			if (task->signal->oom_score_adj < 0)
-				mult = -1;
-			oom_adj = roundup(mult * task->signal->oom_score_adj *
-				-OOM_DISABLE, OOM_SCORE_ADJ_MAX) /
-				OOM_SCORE_ADJ_MAX * mult;
-		}
+		oom_adj = oom_score_adj_to_oom_adj(task->signal->oom_score_adj);
 		unlock_task_sighand(task, &flags);
 	}
 	put_task_struct(task);
@@ -997,6 +1088,10 @@ static ssize_t oom_adj_write(struct file *file, const char __user *buf,
 	delete_from_adj_tree(task);
 	task->signal->oom_score_adj = oom_adj;
 	add_2_adj_tree(task);
+#ifdef CONFIG_FG_BG_CPUSET_OOM_ADJ
+	/* int oom_adj is actually oom_score_adj at this point */
+	oom_adj_apply_to_cpusets(task, oom_adj);
+#endif
 	trace_oom_score_adj_update(task);
 err_sighand:
 	unlock_task_sighand(task, &flags);
@@ -1088,6 +1183,9 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 
 	if (has_capability_noaudit(current, CAP_SYS_RESOURCE))
 		task->signal->oom_score_adj_min = (short)oom_score_adj;
+#ifdef CONFIG_FG_BG_CPUSET_OOM_ADJ
+	oom_adj_apply_to_cpusets(task, oom_score_adj);
+#endif
 	trace_oom_score_adj_update(task);
 
 err_sighand:
@@ -2735,6 +2833,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_PROC_PAGE_MONITOR
 	REG("clear_refs", S_IWUSR, proc_clear_refs_operations),
 	REG("smaps",      S_IRUGO, proc_pid_smaps_operations),
+	REG("smaps_simple", S_IRUGO, proc_pid_smaps_simple_operations),
 	REG("pagemap",    S_IRUGO, proc_pagemap_operations),
 #endif
 #ifdef CONFIG_SECURITY
