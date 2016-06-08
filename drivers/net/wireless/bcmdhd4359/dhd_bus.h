@@ -4,7 +4,7 @@
  * Provides type definitions and function prototypes used to link the
  * DHD OS, bus, and protocol modules.
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -27,7 +27,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_bus.h 542048 2015-03-18 15:37:26Z $
+ * $Id: dhd_bus.h 610670 2016-01-07 13:11:14Z $
  */
 
 #ifndef _dhd_bus_h_
@@ -191,6 +191,7 @@ extern int dhd_bus_flow_ring_flush_request(struct dhd_bus *bus, void *flow_ring_
 extern void dhd_bus_flow_ring_flush_response(struct dhd_bus *bus, uint16 flowid, uint32 status);
 extern uint32 dhd_bus_max_h2d_queues(struct dhd_bus *bus);
 extern int dhd_bus_schedule_queue(struct dhd_bus *bus, uint16 flow_id, bool txs);
+extern void dhd_bus_set_linkdown(dhd_pub_t *dhdp, bool val);
 
 
 extern int dhdpcie_bus_clock_start(struct dhd_bus *bus);
@@ -206,6 +207,9 @@ extern int dhd_bus_request_irq(struct dhd_bus *bus);
 
 #ifdef DHD_FW_COREDUMP
 extern int dhd_bus_mem_dump(dhd_pub_t *dhd);
+
+extern struct dhd_bus *g_dhd_bus;
+extern int dhd_dongle_mem_dump(void);
 #endif /* DHD_FW_COREDUMP */
 
 #endif /* BCMPCIE */

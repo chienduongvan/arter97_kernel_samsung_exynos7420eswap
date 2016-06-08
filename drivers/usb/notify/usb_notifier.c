@@ -49,7 +49,7 @@ static void of_get_usb_redriver_dt(struct device_node *np,
 	pr_info("%s, gpios_redriver_en %d\n", __func__, gpio);
 
 	pdata->can_diable_usb =
-		of_property_read_bool(np, "samsung,can-disable-usb");
+		!(of_property_read_bool(np, "samsung,unsupport-disable-usb"));
 	pr_info("%s, can_diable_usb %d\n", __func__, pdata->can_diable_usb);
 	return;
 }
@@ -209,6 +209,14 @@ static int usb_handle_notification(struct notifier_block *nb,
 		else
 			pr_err("%s - ACTION Error!\n", __func__);
 		break;
+	case ATTACHED_DEV_USB_LANHUB_MUIC:
+		if (action == MUIC_NOTIFY_CMD_DETACH)
+			send_otg_notify(o_notify, NOTIFY_EVENT_LANHUB, 0);
+		else if (action == MUIC_NOTIFY_CMD_ATTACH)
+			send_otg_notify(o_notify, NOTIFY_EVENT_LANHUB, 1);
+		else
+			pr_err("%s - ACTION Error!\n", __func__);
+		break;
 	default:
 		break;
 	}
@@ -332,6 +340,7 @@ static int exynos_set_host(bool enable)
 	return 0;
 }
 
+extern void set_ncm_ready(bool ready);
 static int exynos_set_peripheral(bool enable)
 {
 	if (enable) {
@@ -340,6 +349,7 @@ static int exynos_set_peripheral(bool enable)
 	} else {
 		pr_info("%s usb detached\n", __func__);
 		check_usb_vbus_state(0);
+		set_ncm_ready(false);
 	}
 	return 0;
 }
@@ -352,6 +362,7 @@ static struct otg_notify dwc_lsi_notify = {
 	.is_wakelock = 1,
 	.booting_delay_sec = 10,
 	.auto_drive_vbus = 1,
+	.device_check_sec = 3,
 	.set_battcall = set_online,
 };
 

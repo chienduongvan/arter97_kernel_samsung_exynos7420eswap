@@ -1,6 +1,6 @@
 VERSION = 3
 PATCHLEVEL = 10
-SUBLEVEL = 94
+SUBLEVEL = 101
 EXTRAVERSION =
 NAME = TOSSUG Baby Fish
 
@@ -198,7 +198,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/x86/ -e s/x86_64/x86/ \
 #ARCH		?= $(SUBARCH)
 #CROSS_COMPILE	?= $(CONFIG_CROSS_COMPILE:"%"=%)
 ARCH		?= arm64
-CROSS_COMPILE	?= /home/arter97/linaro-64/bin/aarch64-none-elf-
+CROSS_COMPILE	?= /home/arter97/linaro-64/bin/aarch64-linux-android-
 
 # Architecture as present in compile.h
 UTS_MACHINE 	:= $(ARCH)
@@ -393,9 +393,21 @@ KBUILD_CFLAGS   := -Werror -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -std=gnu89
 
 # arter97's optimizations
-KBUILD_CFLAGS	+= -pipe -fno-pic -O2 -march=armv8-a+crc -mcpu=cortex-a57.cortex-a53 -mtune=cortex-a57.cortex-a53
+KBUILD_CFLAGS	+= -pipe -mno-android -fno-pic -O2 -march=armv8-a+crc -mcpu=cortex-a57.cortex-a53 -mtune=cortex-a57.cortex-a53
+# GCC 6.1 is too strict
+KBUILD_CFLAGS	+= -Wno-error=misleading-indentation -Wno-error=tautological-compare -Wno-error=array-bounds -Wno-error=overflow
 # Other unnecessary warnings
-KBUILD_CFLAGS	+= -Wno-unused -Wno-maybe-uninitialized
+KBUILD_CFLAGS	+= -Wno-maybe-uninitialized		\
+		   -Wno-error=unused-but-set-parameter	\
+		   -Wno-error=unused-but-set-variable	\
+		   -Wno-error=unused-function		\
+		   -Wno-error=unused-label		\
+		   -Wno-error=unused-local-typedefs	\
+		   -Wno-error=unused-parameter		\
+		   -Wno-error=unused-result		\
+		   -Wno-error=unused-variable		\
+		   -Wno-error=unused-const-variable	\
+		   -Wno-error=unused-value
 
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
@@ -701,6 +713,11 @@ ifeq ($(CONFIG_TIMA),y)
     KBUILD_CFLAGS += -DTIMA_LKM_AUTH_ENABLED -Idrivers/gud/gud-exynos7420/MobiCoreKernelApi/include/
     KBUILD_AFLAGS += -DTIMA_LKM_AUTH_ENABLED
 endif
+endif
+
+#ICCC
+ifeq ($(CONFIG_TZ_ICCC),y)
+    KBUILD_CFLAGS += -Idrivers/gud/gud-exynos7420/MobiCoreKernelApi/include/
 endif
 
 # Add user supplied CPPFLAGS, AFLAGS and CFLAGS as the last assignments

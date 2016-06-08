@@ -1,7 +1,7 @@
 /*
  * Linux cfg80211 Vendor Extension Code
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_cfgvendor.c 455257 2014-02-20 08:10:24Z $
+ * $Id: wl_cfgvendor.c 612549 2016-01-14 07:39:32Z $
  */
 
 /*
@@ -97,7 +97,11 @@ int wl_cfgvendor_send_async_event(struct wiphy *wiphy,
 	kflags = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
 
 	/* Alloc the SKB for vendor_event */
+#if defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)
+	skb = cfg80211_vendor_event_alloc(wiphy, NULL, len, event_id, kflags);
+#else
 	skb = cfg80211_vendor_event_alloc(wiphy, len, event_id, kflags);
+#endif /* CONFIG_ARCH_MSM && SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC */
 	if (!skb) {
 		WL_ERR(("skb alloc failed"));
 		return -ENOMEM;
@@ -262,7 +266,11 @@ wl_cfgvendor_send_hotlist_event(struct wiphy *wiphy,
 		kflags = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
 
 		/* Alloc the SKB for vendor_event */
+#if defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)
+		skb = cfg80211_vendor_event_alloc(wiphy, NULL, malloc_len, event, kflags);
+#else
 		skb = cfg80211_vendor_event_alloc(wiphy, malloc_len, event, kflags);
+#endif /* CONFIG_ARCH_MSM && SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC */
 		if (!skb) {
 			WL_ERR(("skb alloc failed"));
 			return -ENOMEM;
@@ -626,7 +634,7 @@ wl_cfgvendor_hotlist_cfg(struct wiphy *wiphy,
 	int err = 0;
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
 	gscan_hotlist_scan_params_t *hotlist_params;
-	int tmp, tmp1, tmp2, type, j = 0, dummy;
+	int tmp, tmp1, tmp2, type, j = 0;
 	const struct nlattr *outer, *inner, *iter;
 	uint8 flush = 0;
 	struct bssid_t *pbssid;
@@ -658,7 +666,6 @@ wl_cfgvendor_hotlist_cfg(struct wiphy *wiphy,
 								         (int8) nla_get_u8(inner);
 								break;
 							case GSCAN_ATTRIBUTE_RSSI_HIGH:
-								dummy = (int8) nla_get_u8(inner);
 								break;
 							default:
 								WL_ERR(("ATTR unknown %d\n",
@@ -840,7 +847,11 @@ wl_cfgvendor_rtt_evt(void *ctx, void *rtt_data)
 	rtt_list = (struct list_head *)rtt_data;
 	kflags = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
 	/* Alloc the SKB for vendor_event */
+#if defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)
+	skb = cfg80211_vendor_event_alloc(wiphy, NULL, tot_len, GOOGLE_RTT_COMPLETE_EVENT, kflags);
+#else
 	skb = cfg80211_vendor_event_alloc(wiphy, tot_len, GOOGLE_RTT_COMPLETE_EVENT, kflags);
+#endif /* CONFIG_ARCH_MSM && SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC */
 	if (!skb) {
 		WL_ERR(("skb alloc failed"));
 		goto exit;
@@ -1503,8 +1514,9 @@ static const struct  nl80211_vendor_cmd_info wl_vendor_events [] = {
 #endif /* RTT_SUPPORT */
 #ifdef GSCAN_SUPPORT
 		{ OUI_GOOGLE, GOOGLE_SCAN_COMPLETE_EVENT },
-		{ OUI_GOOGLE, GOOGLE_GSCAN_GEOFENCE_LOST_EVENT }
+		{ OUI_GOOGLE, GOOGLE_GSCAN_GEOFENCE_LOST_EVENT },
 #endif /* GSCAN_SUPPORT */
+		{ OUI_BRCM, BRCM_VENDOR_EVENT_IDSUP_STATUS }
 };
 
 int wl_cfgvendor_attach(struct wiphy *wiphy)

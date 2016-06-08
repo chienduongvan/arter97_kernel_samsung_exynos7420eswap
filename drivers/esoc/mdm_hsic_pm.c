@@ -1001,6 +1001,7 @@ static irqreturn_t mdm_hsic_irq_handler(int irq, void *data)
 {
 	int irq_level;
 	struct mdm_hsic_pm_data *pm_data = data;
+	static unsigned long beforeJiffies = 0;
 
 	if (!pm_data || !pm_data->intf_cnt || !pm_data->udev)
 		return IRQ_HANDLED;
@@ -1019,6 +1020,13 @@ static irqreturn_t mdm_hsic_irq_handler(int irq, void *data)
 
 	if (irq_level != HSIC_RESUME_TRIGGER_LEVEL)
 		return IRQ_HANDLED;
+
+	if(jiffies_to_msecs(jiffies - beforeJiffies) < 10){
+		pr_info("%s: Detect rising edge interrupt twice, ignore the second interrupt, return\n", __func__);
+		beforeJiffies = jiffies;
+		return IRQ_HANDLED;
+	}
+	beforeJiffies = jiffies;
 
 	if (pm_data->block_request) {
 		pr_info("%s: request blocked by kernel suspending\n", __func__);

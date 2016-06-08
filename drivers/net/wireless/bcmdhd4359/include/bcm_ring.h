@@ -81,7 +81,7 @@
  * private L1 data cache.
  * +----------------------------------------------------------------------------
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -101,7 +101,9 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id$
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id: bcm_ring.h 591283 2015-10-07 11:52:00Z $
  *
  * -*- Mode: C; tab-width: 4; indent-tabs-mode: t; c-basic-offset: 4 -*-
  * vim: set ts=4 noet sw=4 tw=80:

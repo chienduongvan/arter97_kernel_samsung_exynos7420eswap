@@ -100,7 +100,6 @@ extern char fw_core_version;
 #else
 bool is_dumped_fw_loading_needed = false;
 #endif
-extern bool force_caldata_dump;
 extern bool supend_resume_disable;
 
 static int fimc_is_ischain_3aa_stop(void *qdevice,
@@ -1225,6 +1224,9 @@ static int fimc_is_itf_s_param(struct fimc_is_device_ischain *device,
 	BUG_ON(!device);
 
 	if (frame) {
+		frame->lindex |= lindex;
+		frame->hindex |= hindex;
+
 		dst_base = (ulong)&device->is_region->parameter;
 		src_base = (ulong)frame->shot->ctl.vendor_entry.parameter;
 
@@ -2180,12 +2182,10 @@ int fimc_is_itf_grp_shot(struct fimc_is_device_ischain *device,
 	BUG_ON(!frame);
 	BUG_ON(!frame->shot);
 
-#if (HOST_FW_INTERFACE_VER >= 2)
 	frame->shot->uctl.scalerUd.sourceAddress[0] = frame->dvaddr_buffer[0];
 	frame->shot->uctl.scalerUd.sourceAddress[1] = frame->dvaddr_buffer[1];
 	frame->shot->uctl.scalerUd.sourceAddress[2] = frame->dvaddr_buffer[2];
 	frame->shot->uctl.scalerUd.sourceAddress[3] = frame->dvaddr_buffer[3];
-#endif
 
 	/* Cache Flush */
 	fimc_is_ischain_meta_flush(frame);
@@ -2218,9 +2218,6 @@ int fimc_is_itf_grp_shot(struct fimc_is_device_ischain *device,
 	ret = fimc_is_hw_shot_nblk(device->interface,
 		device->instance,
 		GROUP_ID(group->id),
-#if (HOST_FW_INTERFACE_VER < 2)
-		frame->dvaddr_buffer[0],
-#endif
 		frame->dvaddr_shot,
 		frame->fcount,
 		frame->rcount);
@@ -2393,7 +2390,7 @@ int fimc_is_ischain_power(struct fimc_is_device_ischain *device, int on)
 			fimc_is_itf_set_fwboot(device, COLD_BOOT);
 		}
 
-		if (test_bit(IS_IF_RESUME, &device->interface->fw_boot) && !force_caldata_dump) {
+		if (test_bit(IS_IF_RESUME, &device->interface->fw_boot)) {
 #ifdef FW_SUSPEND_RESUME
 			fimc_is_itf_restorefirm(device);
 #endif
@@ -2446,7 +2443,7 @@ int fimc_is_ischain_power(struct fimc_is_device_ischain *device, int on)
 		set_bit(FIMC_IS_ISCHAIN_POWER_ON, &device->state);
 	} else {
 #ifdef FW_SUSPEND_RESUME
-		if (test_bit(IS_IF_SUSPEND, &device->interface->fw_boot) && !force_caldata_dump)
+		if (test_bit(IS_IF_SUSPEND, &device->interface->fw_boot))
 			fimc_is_itf_storefirm(device);
 #endif
 
@@ -7072,7 +7069,6 @@ static int fimc_is_ischain_3aa_shot(struct fimc_is_device_ischain *device,
 		child = child->child;
 	}
 
-	clear_bit(FIMC_IS_SUBDEV_FORCE_SET, &group->leader.state);
 	PROGRAM_COUNT(10);
 
 p_err:
@@ -7221,7 +7217,6 @@ static int fimc_is_ischain_isp_shot(struct fimc_is_device_ischain *device,
 	}
 #endif
 
-	clear_bit(FIMC_IS_SUBDEV_FORCE_SET, &group->leader.state);
 	PROGRAM_COUNT(10);
 
 p_err:
@@ -7331,7 +7326,6 @@ static int fimc_is_ischain_dis_shot(struct fimc_is_device_ischain *device,
 		child = child->child;
 	}
 
-	clear_bit(FIMC_IS_SUBDEV_FORCE_SET, &group->leader.state);
 	PROGRAM_COUNT(10);
 
 p_err:

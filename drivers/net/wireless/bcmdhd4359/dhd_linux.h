@@ -1,7 +1,7 @@
 /*
  * DHD Linux header file (dhd_linux exports for cfg80211 and other components)
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: dhd_linux.h 399301 2013-04-29 21:41:52Z $
+ * $Id: dhd_linux.h 591285 2015-10-07 11:56:29Z $
  */
 
 /* wifi platform functions for power, interrupt and pre-alloc, either

@@ -1,7 +1,7 @@
 /*
  * Linux Wireless Extensions support
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_iw.c 547371 2015-04-08 12:51:39Z $
+ * $Id: wl_iw.c 591286 2015-10-07 11:59:26Z $
  */
 
 #if defined(USE_IW)
@@ -1573,7 +1573,6 @@ wl_iw_get_scan(
 		iwe.u.qual.noise = 0x100 + bi->phy_noise;
 		event = IWE_STREAM_ADD_EVENT(info, event, end, &iwe, IW_EV_QUAL_LEN);
 
-		/* WPA, WPA2, WPS, WAPI IEs */
 		 wl_iw_handle_scanresults_ies(&event, end, info, bi);
 
 		/* Encryption */
@@ -1697,7 +1696,6 @@ wl_iw_iscan_get_scan(
 		iwe.u.qual.noise = 0x100 + bi->phy_noise;
 		event = IWE_STREAM_ADD_EVENT(info, event, end, &iwe, IW_EV_QUAL_LEN);
 
-		/* WPA, WPA2, WPS, WAPI IEs */
 		wl_iw_handle_scanresults_ies(&event, end, info, bi);
 
 		/* Encryption */
