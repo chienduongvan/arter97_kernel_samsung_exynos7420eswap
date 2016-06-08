@@ -282,9 +282,11 @@ static int __revoke_inmem_pages(struct inode *inode,
 			f2fs_put_dnode(&dn);
 		}
 next:
-		ClearPageUptodate(page);
+		/* we don't need to invalidate this in the sccessful status */
+		if (drop || recover)
+			ClearPageUptodate(page);
 		set_page_private(page, 0);
-		ClearPageUptodate(page);
+		ClearPagePrivate(page);
 		f2fs_put_page(page, 1);
 
 		list_del(&cur->list);
@@ -297,6 +299,8 @@ next:
 void drop_inmem_pages(struct inode *inode)
 {
 	struct f2fs_inode_info *fi = F2FS_I(inode);
+
+	clear_inode_flag(F2FS_I(inode), FI_ATOMIC_FILE);
 
 	mutex_lock(&fi->inmem_lock);
 	__revoke_inmem_pages(inode, &fi->inmem_pages, true, false);
@@ -400,6 +404,11 @@ void f2fs_balance_fs(struct f2fs_sb_info *sbi, bool need)
 {
 	if (!need)
 		return;
+
+	/* balance_fs_bg is able to be pending */
+	if (excess_cached_nats(sbi))
+		f2fs_balance_fs_bg(sbi);
+
 	/*
 	 * We should do GC or end up with checkpoint, if there are so many dirty
 	 * dir/node pages without enough free segments.
@@ -488,24 +497,28 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 	if (test_opt(sbi, NOBARRIER))
 		return 0;
 
-	if (!test_opt(sbi, FLUSH_MERGE)) {
+	if (!test_opt(sbi, FLUSH_MERGE) || !atomic_read(&fcc->submit_flush)) {
 		struct bio *bio = f2fs_bio_alloc(0);
 		int ret;
 
+		atomic_inc(&fcc->submit_flush);
 		bio->bi_bdev = sbi->sb->s_bdev;
 		ret = submit_bio_wait(WRITE_FLUSH, bio);
+		atomic_dec(&fcc->submit_flush);
 		bio_put(bio);
 		return ret;
 	}
 
 	init_completion(&cmd.wait);
 
+	atomic_inc(&fcc->submit_flush);
 	llist_add(&cmd.llnode, &fcc->issue_list);
 
 	if (!fcc->dispatch_list)
 		wake_up(&fcc->flush_wait_queue);
 
 	wait_for_completion(&cmd.wait);
+	atomic_dec(&fcc->submit_flush);
 
 	return cmd.ret;
 }
@@ -519,6 +532,7 @@ int create_flush_cmd_control(struct f2fs_sb_info *sbi)
 	fcc = kzalloc(sizeof(struct flush_cmd_control), GFP_KERNEL);
 	if (!fcc)
 		return -ENOMEM;
+	atomic_set(&fcc->submit_flush, 0);
 	init_waitqueue_head(&fcc->flush_wait_queue);
 	init_llist_head(&fcc->issue_list);
 	SM_I(sbi)->cmd_control_info = fcc;
