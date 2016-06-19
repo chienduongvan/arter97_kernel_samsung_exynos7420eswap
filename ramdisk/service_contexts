@@ -223,7 +223,6 @@ batterymanager                              u:object_r:system_app_service:s0
 clipboarduiservice                          u:object_r:system_app_service:s0
 com.samsung.android.authservice.IAuthService          u:object_r:system_app_service:s0
 com.sc.scservice.ISCServiceFactory          u:object_r:system_app_service:s0
-com.sc.scservicedownloadable.ISCServiceFactory u:object_r:system_app_service:s0
 emergency_service                           u:object_r:system_app_service:s0
 fingerprint_service                         u:object_r:system_app_service:s0
 ImsBase                                     u:object_r:system_app_service:s0
