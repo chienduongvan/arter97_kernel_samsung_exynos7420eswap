@@ -1,6 +1,7 @@
 #!/bin/bash
 export KERNELDIR=`readlink -f .`
 export RAMFS_SOURCE=`readlink -f $KERNELDIR/recovery`
+export PARTITION_SIZE=29360128
 
 echo "kerneldir = $KERNELDIR"
 echo "ramfs_source = $RAMFS_SOURCE"
@@ -16,10 +17,11 @@ else
 	echo "Compiling kernel"
 	cp defconfig .config
 scripts/configcleaner "
-CONFIG_SECURITY_SELINUX_DISABLE_LOAD
+CONFIG_RD_GZIP
 "
 	echo '
-# CONFIG_SECURITY_SELINUX_DISABLE_LOAD is not set
+CONFIG_RD_GZIP=y
+CONFIG_DECOMPRESS_GZIP=y
 ' >> .config
 	make oldconfig
 	make "$@" || exit 1
@@ -45,15 +47,20 @@ cd $KERNELDIR
 rm -rf $RAMFS_TMP/tmp/*
 
 cd $RAMFS_TMP
-find . | fakeroot cpio -H newc -o | lzop -9 > $RAMFS_TMP.cpio.lzo
-ls -lh $RAMFS_TMP.cpio.lzo
+find . | fakeroot cpio -H newc -o | gzip -9 > $RAMFS_TMP.cpio.gz
+ls -lh $RAMFS_TMP.cpio.gz
 cd $KERNELDIR
 
 echo "Making new boot image"
 gcc -w -s -pipe -O2 -Itools/libmincrypt -o tools/mkbootimg/mkbootimg tools/libmincrypt/*.c tools/mkbootimg/mkbootimg.c
-tools/mkbootimg/mkbootimg --kernel $KERNELDIR/arch/arm64/boot/Image --dt $KERNELDIR/dtb.img --ramdisk $RAMFS_TMP.cpio.lzo --base 0x10000000 --pagesize 2048 --ramdisk_offset 0x01000000 --tags_offset 0x00000100 --second_offset 0x00f00000 -o $KERNELDIR/recovery.img
+tools/mkbootimg/mkbootimg --kernel $KERNELDIR/arch/arm64/boot/Image --dt $KERNELDIR/dtb.img --ramdisk $RAMFS_TMP.cpio.gz --base 0x10000000 --pagesize 2048 --ramdisk_offset 0x01000000 --tags_offset 0x00000100 --second_offset 0x00f00000 -o $KERNELDIR/recovery.img
+GENERATED_SIZE=$(stat -c %s recovery.img)
+if [[ $GENERATED_SIZE -gt $PARTITION_SIZE ]]; then
+	echo "recovery.img size larger than partition size!" 1>&2
+	exit 1
+fi
 if echo "$@" | grep -q "CC=\$(CROSS_COMPILE)gcc" ; then
-	dd if=/dev/zero bs=$((29360128-$(stat -c %s recovery.img))) count=1 >> recovery.img
+	dd if=/dev/zero bs=$((${PARTITION_SIZE}-${GENERATED_SIZE})) count=1 >> recovery.img
 fi
 
 echo "done"
