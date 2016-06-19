@@ -6,7 +6,7 @@
  *
  * Definitions subject to change without notice.
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -27,7 +27,7 @@
  * other than the GPL, without Broadcom's express prior written consent.
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wlioctl.h 559443 2015-05-27 16:56:36Z $
+ * $Id: wlioctl.h 609280 2016-01-01 06:31:38Z $
  */
 
 #ifndef _wlioctl_h_
@@ -516,23 +516,25 @@ typedef BWL_PRE_PACKED_STRUCT struct wnm_url {
 	uint8   data[1];
 } BWL_POST_PACKED_STRUCT wnm_url_t;
 
-
-#define WNM_BSSLOAD_MONITOR_VERSION   1
 #define WNM_BSS_SELECT_TYPE_RSSI   0
 #define WNM_BSS_SELECT_TYPE_CU   1
-#define WNM_BSS_SELECT_FACTOR_VERSION   1
 
+#define WNM_BSSLOAD_MONITOR_VERSION   1
 typedef struct wnm_bssload_monitor_cfg {
 	uint8 version;
 	uint8 band;
 	uint8 duration; /* duration between 1 to 20sec */
 } wnm_bssload_monitor_cfg_t;
+
+#define BSS_MAXTABLE_SIZE 10
+#define WNM_BSS_SELECT_FACTOR_VERSION   1
 typedef struct wnm_bss_select_factor_params {
 	uint8 low;
 	uint8 high;
 	uint8 factor;
 	uint8 pad;
 } wnm_bss_select_factor_params_t;
+
 typedef struct wnm_bss_select_factor_cfg {
 	uint8 version;
 	uint8 band;
@@ -550,13 +552,12 @@ typedef struct wnm_bss_select_weight_cfg {
 	uint16 weight; /* weightage for each type between 0 to 100 */
 } wnm_bss_select_weight_cfg_t;
 
-
 #define WNM_ROAM_TRIGGER_VERSION   1
 typedef struct wnm_roam_trigger_cfg {
 	uint8 version;
 	uint8 band;
 	uint16 type;
-	uint16 trigger; /* trigger for each type in new roam algorithm */
+	int16 trigger; /* trigger for each type in new roam algorithm */
 } wnm_roam_trigger_cfg_t;
 
 typedef struct chan_scandata {
@@ -3607,6 +3608,8 @@ typedef struct {
 typedef struct {
 	uint16			period;			/* extended listen period */
 	uint16			interval;		/* extended listen interval */
+	uint16			count;			/* count to repeat */
+	uint16                  pad;                    /* pad for 32bit align */
 } wl_p2po_listen_t;
 
 /* GAS state machine tunable parameters.  Structure field values of 0 means use the default. */
@@ -6007,7 +6010,8 @@ typedef BWL_PRE_PACKED_STRUCT struct wl_proxd_collect_header {
 /*  ********************** NAN wl interface struct types and defs ******************** */
 
 #define WL_NAN_IOCTL_VERSION	0x1
-#define NAN_IOC_BUFSZ  256 /* some sufficient ioc buff size for our module */
+#define NAN_IOC_BUFSZ  256 /**< some sufficient ioc buff size for our module */
+#define NAN_IOC_BUFSZ_EXT  1024 /* some sufficient ioc buff size for dump commands */
 
 /*   wl_nan_sub_cmd may also be used in dhd  */
 typedef struct wl_nan_sub_cmd wl_nan_sub_cmd_t;
@@ -6043,6 +6047,7 @@ typedef struct wl_nan_status {
 	uint32 cnt_svc_disc_tx;		/* TX svc disc frame count */
 	uint32 cnt_svc_disc_rx;		/* RX svc disc frame count */
 	struct ether_addr cid;
+	uint32 chspec_5g;
 } wl_nan_status_t;
 
 typedef struct wl_nan_count {
@@ -6120,11 +6125,15 @@ enum wl_nan_cmds {
 	WL_NAN_CMD_SCAN_RESULTS = 48,
 	WL_NAN_CMD_EVENT_MASK = 49,
 	WL_NAN_CMD_EVENT_CHECK = 50,
+	WL_NAN_CMD_DUMP = 51,
+	WL_NAN_CMD_CLEAR = 52,
+	WL_NAN_CMD_RSSI = 53,
 
 	WL_NAN_CMD_DEBUG = 60,
 	WL_NAN_CMD_TEST1 = 61,
 	WL_NAN_CMD_TEST2 = 62,
-	WL_NAN_CMD_TEST3 = 63
+	WL_NAN_CMD_TEST3 = 63,
+	WL_NAN_CMD_DISC_RESULTS = 64
 };
 
 /*
@@ -6156,6 +6165,7 @@ enum wl_nan_cmd_xtlv_id {
 	WL_NAN_XTLV_REQUESTOR_ID = 0x127,	/* Requestor instance ID */
 	WL_NAN_XTLV_VNDR = 0x128,		/* Vendor specific attribute */
 	WL_NAN_XTLV_SR_FILTER = 0x129,          /* Service Response Filter */
+	WL_NAN_XTLV_FOLLOWUP = 0x130,	/* Service Info for Follow-Up SDF */
 	WL_NAN_XTLV_PEER_INSTANCE_ID = 0x131, /* Used to parse remote instance Id */
 	/* explicit types, primarily for NAN MAC iovars   */
 	WL_NAN_XTLV_DW_LEN = 0x140,            /* discovery win length */
@@ -6197,7 +6207,12 @@ enum wl_nan_cmd_xtlv_id {
 	WL_NAN_XTLV_SVC_DISC_TXTIME = 0x165,     /* svc disc frame tx time in DW */
 	WL_NAN_XTLV_OPERATING_BAND = 0x166,
 	WL_NAN_XTLV_STOP_BCN_TX = 0x167,
-	WL_NAN_XTLV_CONCUR_SCAN = 0x168
+	WL_NAN_XTLV_CONCUR_SCAN = 0x168,
+	WL_NAN_XTLV_DUMP_CLR_TYPE = 0x175, /* wl nan dump/clear subtype */
+	WL_NAN_XTLV_PEER_RSSI = 0x176, /* xtlv payload for wl nan dump rssi */
+	WL_NAN_XTLV_MAC_CHANSPEC_1 = 0x17A,	/* to get chanspec[1] */
+	WL_NAN_XTLV_DISC_RESULTS = 0x17B,        /* get disc results */
+	WL_NAN_XTLV_MAC_STATS = 0x17C /* xtlv payload for wl nan dump stats */
 };
 
 /* Flag bits for Publish and Subscribe (wl_nan_disc_params_t flags) */
@@ -6238,7 +6253,10 @@ enum wl_nan_cmd_xtlv_id {
 /* Instance ID type (unique identifier) */
 typedef uint8 wl_nan_instance_id_t;
 
-/* Mandatory parameters for publish/subscribe iovars - NAN_TLV_SVC_PARAMS */
+/* no. of max last disc results */
+#define WL_NAN_MAX_DISC_RESULTS	3
+
+/** Mandatory parameters for publish/subscribe iovars - NAN_TLV_SVC_PARAMS */
 typedef struct wl_nan_disc_params_s {
 	/* Periodicity of unsolicited/query transmissions, in DWs */
 	uint32 period;
@@ -6253,6 +6271,21 @@ typedef struct wl_nan_disc_params_s {
 	/* Publish or subscribe id */
 	wl_nan_instance_id_t instance_id;
 } wl_nan_disc_params_t;
+
+/* recent discovery results */
+typedef struct wl_nan_disc_result_s
+{
+	wl_nan_instance_id_t instance_id;	/* instance id of pub/sub req */
+	wl_nan_instance_id_t peer_instance_id;	/* peer instance id of pub/sub req/resp */
+	uint8 svc_hash[WL_NAN_SVC_HASH_LEN];	/* service descp string */
+	struct ether_addr peer_mac;	/* peer mac address */
+} wl_nan_disc_result_t;
+
+/* list of recent discovery results */
+typedef struct wl_nan_disc_results_s
+{
+	wl_nan_disc_result_t disc_result[WL_NAN_MAX_DISC_RESULTS];
+} wl_nan_disc_results_list_t;
 
 /*
 * desovery interface event structures *
@@ -6329,6 +6362,77 @@ typedef struct nan_ranging_event_data {
 	uint8 count;			/* number of peers in the list */
 	wl_nan_ranging_result_t rr[1];	/* variable array of ranging peers */
 } wl_nan_ranging_event_data_t;
+enum {
+	WL_NAN_RSSI_DATA = 1,
+	WL_NAN_STATS_DATA = 2,
+/*
+ * ***** ADD before this line ****
+ */
+	WL_NAN_INVALID
+};
+
+typedef struct wl_nan_stats {
+	/* general */
+	uint32 cnt_dw; /* DW slots */
+	uint32 cnt_disc_bcn_sch; /* disc beacon slots */
+	uint32 cnt_amr_exp; /* count of ambtt expiries resetting roles */
+	uint32 cnt_bcn_upd; /* count of beacon template updates */
+	uint32 cnt_bcn_tx; /* count of sync & disc bcn tx */
+	uint32 cnt_bcn_rx; /* count of sync & disc bcn rx */
+	uint32 cnt_sync_bcn_tx; /* count of sync bcn tx within DW */
+	uint32 cnt_disc_bcn_tx; /* count of disc bcn tx */
+	uint32 cnt_sdftx_bcmc; /* count of bcast/mcast sdf tx */
+	uint32 cnt_sdftx_uc; /* count of unicast sdf tx */
+	uint32 cnt_sdftx_fail; /* count of unicast sdf tx fails */
+	uint32 cnt_sdf_rx; /* count of  sdf rx */
+	/* NAN roles */
+	uint32 cnt_am; /* anchor master */
+	uint32 cnt_master; /* master */
+	uint32 cnt_nms; /* non master sync */
+	uint32 cnt_nmns; /* non master non sync */
+	/* TX */
+	uint32 cnt_err_txtime; /* error in txtime */
+	uint32 cnt_err_unsch_tx; /* tx while not in DW/ disc bcn slot */
+	uint32 cnt_err_bcn_tx; /*  beacon tx error */
+	uint32 cnt_sync_bcn_tx_miss; /* no. of times time delta between 2 cosequetive
+						* sync beacons is more than dw interval
+						*/
+	/* SCANS */
+	uint32 cnt_mrg_scan; /* count of merge scans completed */
+	uint32 cnt_err_ms_rej; /* number of merge scan failed */
+	uint32 cnt_scan_results; /* no. of nan beacons scanned */
+	uint32 cnt_join_scan_rej; /* no. of join scans rejected */
+	uint32 cnt_nan_scan_abort; /* no. of join scans rejected */
+	/* enable/disable */
+	uint32 cnt_nan_enab; /* no. of times nan feature got enabled */
+	uint32 cnt_nan_disab; /* no. of times nan feature got disabled */
+} wl_nan_stats_t;
+
+#define WL_NAN_MAC_MAX_NAN_PEERS 6
+#define WL_NAN_MAC_MAX_RSSI_DATA_PER_PEER  10
+
+typedef struct wl_nan_nbr_rssi {
+	uint8 rx_chan; /* channel number on which bcn rcvd */
+	int rssi_raw;  /* received rssi value */
+	int rssi_avg;  /* normalized rssi value */
+} wl_nan_peer_rssi_t;
+
+typedef struct wl_nan_peer_rssi_entry {
+	struct ether_addr mac;  /* peer mac address */
+	uint8 flags;   /* TODO:rssi data order: latest first, oldest first etc */
+	uint8 rssi_cnt;   /* rssi data sample present */
+	wl_nan_peer_rssi_t rssi[WL_NAN_MAC_MAX_RSSI_DATA_PER_PEER]; /* RSSI data frm peer */
+} wl_nan_peer_rssi_entry_t;
+
+#define WL_NAN_PEER_RSSI      0x1
+#define WL_NAN_PEER_RSSI_LIST 0x2
+
+typedef struct wl_nan_nbr_rssi_data {
+	uint8 flags;   /* this is a list or single rssi data */
+	uint8 peer_cnt; /* number of peers */
+	uint16 pad; /* padding */
+	wl_nan_peer_rssi_entry_t peers[1]; /* peers data list */
+} wl_nan_peer_rssi_data_t;
 
 /* ********************* end of NAN section ******************************** */
 #endif /* WL_NAN */
@@ -7572,7 +7676,7 @@ typedef struct wl_bssload_cfg {
 /* Multiple roaming profile suport */
 #define WL_MAX_ROAM_PROF_BRACKETS	4
 
-#define WL_MAX_ROAM_PROF_VER	0
+#define WL_MAX_ROAM_PROF_VER	1
 
 #define WL_ROAM_PROF_NONE	(0 << 0)
 #define WL_ROAM_PROF_LAZY	(1 << 0)
@@ -7580,6 +7684,8 @@ typedef struct wl_bssload_cfg {
 #define WL_ROAM_PROF_SUSPEND	(1 << 2)
 #define WL_ROAM_PROF_SYNC_DTIM	(1 << 6)
 #define WL_ROAM_PROF_DEFAULT	(1 << 7)	/* backward compatible single default profile */
+
+#define WL_FACTOR_TABLE_MAX_LIMIT 5
 
 typedef struct wl_roam_prof {
 	int8	roam_flags;		/* bit flags */
@@ -7593,6 +7699,8 @@ typedef struct wl_roam_prof {
 	uint16	init_scan_period;
 	uint16	backoff_multiplier;
 	uint16	max_scan_period;
+	uint8		channel_usage;
+	uint8		cu_avg_calc_dur;
 } wl_roam_prof_t;
 
 typedef struct wl_roam_prof_band {
@@ -7934,6 +8042,16 @@ typedef enum {
     MAX_SUPP_ULB_BW
 } ulb_bw_type_t;
 #endif /* WL11ULB */
+
+#if defined(WLRCC) || defined(ROAM_CHANNEL_CACHE)
+#define MAX_ROAM_CHANNEL      20
+
+typedef struct {
+	int n;
+	chanspec_t channels[MAX_ROAM_CHANNEL];
+} wl_roam_channel_list_t;
+#endif /* RCC || ROAM_CHANNEL_CACHE */
+
 #ifdef MFP
 /* values for IOV_MFP arg */
 enum {
@@ -7942,5 +8060,59 @@ enum {
     WL_MFP_REQUIRED
 };
 #endif /* MFP */
+
+/*
+ * Neighbor Discover Offload: enable NDO feature
+ * Called  by ipv6 event handler when interface comes up
+ * Set RA rate limit interval value(%)
+ */
+typedef struct nd_ra_ol_limits {
+	uint16 version;         /* version of the iovar buffer */
+	uint16 type;            /* type of data provided */
+	uint16 length;          /* length of the entire structure */
+	uint16 pad1;            /* pad union to 4 byte boundary */
+	union {
+		struct {
+			uint16 min_time;         /* seconds, min time for RA offload hold */
+			uint16 lifetime_percent;
+			/* percent, lifetime percentage for offload hold time */
+		} lifetime_relative;
+		struct {
+			uint16 hold_time;        /* seconds, RA offload hold time */
+			uint16 pad2;             /* unused */
+		} fixed;
+	} limits;
+} nd_ra_ol_limits_t;
+
+#define ND_RA_OL_LIMITS_VER 1
+
+/* nd_ra_ol_limits sub-types */
+#define ND_RA_OL_LIMITS_REL_TYPE   0     /* relative, percent of RA lifetime */
+#define ND_RA_OL_LIMITS_FIXED_TYPE 1     /* fixed time */
+
+/* buffer lengths for the different nd_ra_ol_limits types */
+#define ND_RA_OL_LIMITS_REL_TYPE_LEN   12
+#define ND_RA_OL_LIMITS_FIXED_TYPE_LEN  10
+
+#define ND_RA_OL_SET    "SET"
+#define ND_RA_OL_GET    "GET"
+#define ND_PARAM_SIZE   50
+#define ND_VALUE_SIZE   5
+#define ND_PARAMS_DELIMETER " "
+#define ND_PARAM_VALUE_DELLIMETER   '='
+#define ND_LIMIT_STR_FMT ("%50s %50s")
+
+#define ND_RA_TYPE  "TYPE"
+#define ND_RA_MIN_TIME  "MIN"
+#define ND_RA_PER   "PER"
+#define ND_RA_HOLD  "HOLD"
+
+/*
+ * Temperature Throttling control mode
+ */
+typedef struct wl_temp_control {
+	bool enable;
+	uint16 control_bit;
+} wl_temp_control_t;
 
 #endif /* _wlioctl_h_ */

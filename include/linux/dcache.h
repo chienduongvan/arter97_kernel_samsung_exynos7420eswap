@@ -210,6 +210,8 @@ struct dentry_operations {
 
 #define DCACHE_DENTRY_KILLED	0x100000
 
+#define DCACHE_ENCRYPTED_WITH_KEY	0x04000000 /* dir is encrypted with a valid key */
+
 extern seqlock_t rename_lock;
 
 static inline int dname_external(struct dentry *dentry)
@@ -412,8 +414,4 @@ static inline bool d_mountpoint(struct dentry *dentry)
 
 extern int sysctl_vfs_cache_pressure;
 
-static inline unsigned long vfs_pressure_ratio(unsigned long val)
-{
-	return mult_frac(val, sysctl_vfs_cache_pressure, 100);
-}
 #endif	/* __LINUX_DCACHE_H */

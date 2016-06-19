@@ -3,7 +3,7 @@
  * This header file housing the define and function prototype use by
  * both the wl driver, tools & Apps.
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmwifi_channels.h 309193 2012-01-19 00:03:57Z $
+ * $Id: bcmwifi_channels.h 591285 2015-10-07 11:56:29Z $
  */
 
 #ifndef	_bcmwifi_channels_h_

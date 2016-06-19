@@ -95,18 +95,45 @@
 #include "audit.h"
 #include "avc_ss.h"
 
+#ifdef CONFIG_RKP_NS_PROT
+extern unsigned int cmp_ns_integrity(void);
+#else
+unsigned int cmp_ns_integrity(void)
+{
+	return 0;
+}
+#endif
 #define NUM_SEL_MNT_OPTS 5
 
 #ifdef CONFIG_RKP_KDP
 #include<linux/rkp_entry.h>
+
+extern struct kmem_cache *tsec_jar;
+extern void rkp_free_security(unsigned long tsec);
 u8 rkp_ro_page(unsigned long addr);
-static inline unsigned int cmp_sec_integrity(void)
+static inline unsigned int cmp_sec_integrity(const struct cred *cred,struct mm_struct *mm)
 {
-	return ((current->cred->bp_task != current)||
-			(current->mm && 
-			(!( in_interrupt() || in_softirq() )) && 
-			(current->mm->pgd != current->cred->bp_pgd)));
-			
+	return ((cred->bp_task != current)||
+			(mm && (!( in_interrupt() || in_softirq())) && 
+			(mm->pgd != cred->bp_pgd)));
+}
+extern char __rkp_initsec[];
+static inline unsigned int rkp_is_valid_cred_sp(u64 cred,u64 sp)
+{
+		struct task_security_struct *tsec = (struct task_security_struct *)sp;
+
+		if((cred == (u64)__rkp_ro_start) /*&& 
+			( sp == (u64)__rkp_initsec)*/){
+			return 0;
+		}
+		if(!rkp_ro_page(cred)|| !rkp_ro_page(cred+sizeof(struct cred))||
+			(!rkp_ro_page(sp)|| !rkp_ro_page(sp+sizeof(struct task_security_struct)))) {
+			return 1;
+		}
+		if((u64)tsec->bp_cred != cred) {
+			return 1;
+		}
+		return 0;
 }
 inline void rkp_print_debug(void)
 {
@@ -119,20 +146,30 @@ inline void rkp_print_debug(void)
 	printk(KERN_ERR"\n RKP44 cred = %p bp_task = %p bp_pgd = %p pgd = %llx stat = #%d# task = %p mm = %p \n",cred,cred->bp_task,cred->bp_pgd,pgd,(int)rkp_ro_page((unsigned long long)cred),current,current->mm);
 
 	printk(KERN_ERR"\n RKP44_1 uid = %d gid = %d euid = %d  egid = %d \n",cred->uid,cred->gid,cred->euid,cred->egid);
+	printk(KERN_ERR"\n RKP44_2 Cred %llx #%d# #%d# Sec ptr %llx #%d# #%d#\n",(u64)cred,rkp_ro_page((u64)cred),rkp_ro_page((u64)cred+sizeof(struct cred)),(u64)cred->security, rkp_ro_page((u64)cred->security),rkp_ro_page((u64)cred->security+sizeof(struct task_security_struct)));
 
 }
+
 /* Main function to verify cred security context of a process */
 int security_integrity_current(void)
 {
 	if ( rkp_cred_enable && 
-		(!rkp_ro_page((unsigned long)current->cred)||
-		cmp_sec_integrity())) {
+		(rkp_is_valid_cred_sp((u64)current_cred(),(u64)current_cred()->security)||
+		cmp_sec_integrity(current_cred(),current->mm)||
+		cmp_ns_integrity())) {
 		rkp_print_debug();
 		panic("RKP CRED PROTECTION VIOLATION\n");
 	}
 	return 0;
 }
-
+unsigned int rkp_get_task_sec_size(void)
+{
+	return sizeof(struct task_security_struct);
+}
+unsigned int rkp_get_offset_bp_cred(void)
+{
+	return offsetof(struct task_security_struct,bp_cred);
+}
 #endif  /* CONFIG_RKP_KDP */
 
 extern struct security_operations *security_ops;
@@ -189,6 +226,9 @@ static int selinux_netcache_avc_callback(u32 event)
 	return 0;
 }
 
+#ifdef CONFIG_RKP_KDP
+RKP_RO_AREA struct task_security_struct init_sec;
+#endif
 /*
  * initialise the security for the init task
  */
@@ -196,11 +236,14 @@ static void cred_init_security(void)
 {
 	struct cred *cred = (struct cred *) current->real_cred;
 	struct task_security_struct *tsec;
-
+#ifdef CONFIG_RKP_KDP
+	tsec = &init_sec;
+	tsec->bp_cred = cred;
+#else
 	tsec = kzalloc(sizeof(struct task_security_struct), GFP_KERNEL);
 	if (!tsec)
 		panic("SELinux:  Failed to initialize initial task.\n");
-
+#endif
 	tsec->osid = tsec->sid = SECINITSID_KERNEL;
 	cred->security = tsec;
 }
@@ -222,12 +265,15 @@ static inline u32 cred_sid(const struct cred *cred)
 static inline u32 task_sid(const struct task_struct *task)
 {
 	u32 sid;
+#ifdef CONFIG_RKP_KDP
+	volatile struct task_security_struct *tsec;
+#endif
 
 	rcu_read_lock();
 #ifdef CONFIG_RKP_KDP
 	if(rkp_cred_enable) {
-		while((u64)(__task_cred(task)->security) == (u64)0x07);
-		sid = cred_sid(__task_cred(task));
+		while((u64)(tsec = __task_cred(task)->security) == (u64)0x07);
+		sid = tsec->sid;
 	}
 	else
 		sid = cred_sid(__task_cred(task));
@@ -1959,84 +2005,6 @@ static inline u32 open_file_to_av(struct file *file)
 
 /* Hook functions begin here. */
 
-static int selinux_binder_set_context_mgr(struct task_struct *mgr)
-{
-	u32 mysid = current_sid();
-	u32 mgrsid = task_sid(mgr);
-#ifdef CONFIG_RKP_KDP
-	int rc;
-
-	if ((rc = security_integrity_current()))
-		return rc;
-#endif  /* CONFIG_RKP_KDP */
-
-	return avc_has_perm(mysid, mgrsid, SECCLASS_BINDER, BINDER__SET_CONTEXT_MGR, NULL);
-}
-
-static int selinux_binder_transaction(struct task_struct *from, struct task_struct *to)
-{
-	u32 mysid = current_sid();
-	u32 fromsid = task_sid(from);
-	u32 tosid = task_sid(to);
-	int rc;
-#ifdef CONFIG_RKP_KDP
-	if ((rc = security_integrity_current()))
-		return rc;
-#endif  /* CONFIG_RKP_KDP */
-	if (mysid != fromsid) {
-		rc = avc_has_perm(mysid, fromsid, SECCLASS_BINDER, BINDER__IMPERSONATE, NULL);
-		if (rc)
-			return rc;
-	}
-
-	return avc_has_perm(fromsid, tosid, SECCLASS_BINDER, BINDER__CALL, NULL);
-}
-
-static int selinux_binder_transfer_binder(struct task_struct *from, struct task_struct *to)
-{
-	u32 fromsid = task_sid(from);
-	u32 tosid = task_sid(to);
-#ifdef CONFIG_RKP_KDP
-	int rc;
-
-	if ((rc = security_integrity_current()))
-		return rc;
-#endif  /* CONFIG_RKP_KDP */
-	return avc_has_perm(fromsid, tosid, SECCLASS_BINDER, BINDER__TRANSFER, NULL);
-}
-
-static int selinux_binder_transfer_file(struct task_struct *from, struct task_struct *to, struct file *file)
-{
-	u32 sid = task_sid(to);
-	struct file_security_struct *fsec = file->f_security;
-	struct inode *inode = file->f_path.dentry->d_inode;
-	struct inode_security_struct *isec = inode->i_security;
-	struct common_audit_data ad;
-	int rc;
-#ifdef CONFIG_RKP_KDP
-	if ((rc = security_integrity_current()))
-		return rc;
-#endif  /* CONFIG_RKP_KDP */
-
-	ad.type = LSM_AUDIT_DATA_PATH;
-	ad.u.path = file->f_path;
-
-	if (sid != fsec->sid) {
-		rc = avc_has_perm(sid, fsec->sid,
-				  SECCLASS_FD,
-				  FD__USE,
-				  &ad);
-		if (rc)
-			return rc;
-	}
-
-	if (unlikely(IS_PRIVATE(inode)))
-		return 0;
-
-	return avc_has_perm(sid, isec->sid, isec->sclass, file_to_av(file),
-			    &ad);
-}
-
 static int selinux_ptrace_access_check(struct task_struct *child,
 				     unsigned int mode)
 {
@@ -3432,6 +3400,8 @@ int ioctl_has_perm(const struct cred *cred, struct file *file,
 	struct lsm_ioctlop_audit ioctl;
 	u32 ssid = cred_sid(cred);
 	int rc;
+	u8 driver = cmd >> 8;
+	u8 xperm = cmd & 0xff;
 
 	ad.type = LSM_AUDIT_DATA_IOCTL_OP;
 	ad.u.op = &ioctl;
@@ -3450,8 +3420,8 @@ int ioctl_has_perm(const struct cred *cred, struct file *file,
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
 
-	rc = avc_has_operation(ssid, isec->sid, isec->sclass,
-			requested, cmd, &ad);
+	rc = avc_has_extended_perms(ssid, isec->sid, isec->sclass,
+			requested, driver, xperm, &ad);
 out:
 	return rc;
 }
@@ -3812,7 +3782,11 @@ static void selinux_cred_free(struct cred *cred)
 	} else
 #endif /*CONFIG_RKP_KDP*/
 	cred->security = (void *) 0x7UL;
+#ifdef CONFIG_RKP_KDP
+	rkp_free_security((unsigned long)tsec);
+#else/*CONFIG_RKP_KDP*/
 	kfree(tsec);
+#endif /*CONFIG_RKP_KDP*/
 }
 
 /*
@@ -6484,13 +6458,8 @@ static int selinux_key_getsecurity(struct key *key, char **_buffer)
 
 #endif
 
-static struct security_operations selinux_ops = {
+RKP_RO_AREA static struct security_operations selinux_ops = {
 	.name =				"selinux",
-
-	.binder_set_context_mgr =	selinux_binder_set_context_mgr,
-	.binder_transaction =		selinux_binder_transaction,
-	.binder_transfer_binder =	selinux_binder_transfer_binder,
-	.binder_transfer_file =		selinux_binder_transfer_file,
 
 	.ptrace_access_check =		selinux_ptrace_access_check,
 	.ptrace_traceme =		selinux_ptrace_traceme,

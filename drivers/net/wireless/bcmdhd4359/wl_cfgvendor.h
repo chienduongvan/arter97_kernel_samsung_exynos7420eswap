@@ -1,7 +1,7 @@
 /*
  * Linux cfg80211 Vendor Extension Code
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: wl_cfgvendor.h 455257 2014-02-20 08:10:24Z $
+ * $Id: wl_cfgvendor.h 605796 2015-12-11 13:45:36Z $
  */
 
 
@@ -213,7 +213,8 @@ typedef enum wl_vendor_event {
 	GOOGLE_SCAN_FULL_RESULTS_EVENT,
 	GOOGLE_RTT_COMPLETE_EVENT,
 	GOOGLE_SCAN_COMPLETE_EVENT,
-	GOOGLE_GSCAN_GEOFENCE_LOST_EVENT
+	GOOGLE_GSCAN_GEOFENCE_LOST_EVENT,
+	BRCM_VENDOR_EVENT_IDSUP_STATUS
 } wl_vendor_event_t;
 
 enum andr_wifi_attr {
