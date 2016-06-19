@@ -1,5 +1,7 @@
 #!/res/busybox sh
 
+exec > /dev/kmsg 2>&1
+
 export PATH=/res/asset:$PATH
 export ext4=1
 
@@ -10,14 +12,30 @@ mount -t ext4 -o noatime,nodiratime,nosuid,nodev,noauto_da_alloc,discard,data=or
 mount -t f2fs -o noatime,nodiratime,nosuid,nodev,background_gc=on,discard /dev/block/platform/15570000.ufs/by-name/USERDATA /arter97/data
 
 if [ -f /arter97/data/.arter97/btaltrom ] ; then
+	if [ -f /arter97/data/.arter97/once ] ; then
+		rm /arter97/data/.arter97/btaltrom
+	fi
 	export ext4=0
 	umount -f /system
-	chmod 755 /arter97/data/arter97_secondrom/system
-	chmod 771 /arter97/data/arter97_secondrom/data
-	chmod 771 /arter97/data/arter97_secondrom/cache
-	mount --bind /arter97/data/arter97_secondrom/system /system
-	mount --bind /arter97/data/arter97_secondrom/data /data
-	mount --bind /arter97/data/arter97_secondrom/cache /cache
+	. /arter97/data/.arter97/header
+	SYSTEM=/arter97/data/arter97_secondrom/system
+	DATA=/arter97/data/arter97_secondrom/data
+	CACHE=/arter97/data/arter97_secondrom/cache
+	if [ -f /arter97/data/.arter97/mountpoint_system ] ; then
+		SYSTEM=$(cat /arter97/data/.arter97/mountpoint_system)
+	fi
+	if [ -f /arter97/data/.arter97/mountpoint_data ] ; then
+		DATA=$(cat /arter97/data/.arter97/mountpoint_data)
+	fi
+	if [ -f /arter97/data/.arter97/mountpoint_cache ] ; then
+		CACHE=$(cat /arter97/data/.arter97/mountpoint_cache)
+	fi
+	chmod 755 $SYSTEM
+	chmod 771 $DATA
+	chmod 771 $CACHE
+	mount --bind $SYSTEM /system
+	mount --bind $DATA /data
+	mount --bind $CACHE /cache
 	mkdir /arter97/data/.arter97
 	mkdir /data/.arter97
 	rm -rf /data/.arter97/*
@@ -27,8 +45,6 @@ if [ -f /arter97/data/.arter97/btaltrom ] ; then
 	mount --bind /arter97/data/.arter97 /data/.arter97
 	mount --bind -o remount,suid,dev /system
 	if [ -f /arter97/data/media/0/.arter97/shared ]; then
-		rm -rf /arter97/data/arter97_secondrom/data/media/0/.arter97
-		cp -rp /arter97/data/arter97_secondrom/data/media/* /arter97/data/media/
 		mount --bind /arter97/data/media /data/media
 	fi
 	CUR_PATH=$PATH
