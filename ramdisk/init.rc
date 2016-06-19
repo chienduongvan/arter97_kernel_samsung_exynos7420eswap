@@ -181,20 +181,20 @@ on init
     # this ensures that the cpusets are present and usable, but the device's
     # init.rc must actually set the correct cpus
     mkdir /dev/cpuset/foreground
-    write /dev/cpuset/foreground/cpus 0
+    write /dev/cpuset/foreground/cpus 0-7
     write /dev/cpuset/foreground/mems 0
     mkdir /dev/cpuset/foreground/boost
-    write /dev/cpuset/foreground/boost/cpus 0
+    write /dev/cpuset/foreground/boost/cpus 0-7
     write /dev/cpuset/foreground/boost/mems 0
     mkdir /dev/cpuset/background
-    write /dev/cpuset/background/cpus 0
+    write /dev/cpuset/background/cpus 0-7
     write /dev/cpuset/background/mems 0
 
     # system-background is for system tasks that should only run on
     # little cores, not on bigs
     # to be used only by init, so don't change system-bg permissions
     mkdir /dev/cpuset/system-background
-    write /dev/cpuset/system-background/cpus 0
+    write /dev/cpuset/system-background/cpus 0-7
     write /dev/cpuset/system-background/mems 0
 
     # change permissions for all cpusets we'll touch at runtime
@@ -202,13 +202,19 @@ on init
     chown system system /dev/cpuset/foreground
     chown system system /dev/cpuset/foreground/boost
     chown system system /dev/cpuset/background
+    chown system system /dev/cpuset/system-background
     chown system system /dev/cpuset/tasks
     chown system system /dev/cpuset/foreground/tasks
     chown system system /dev/cpuset/foreground/boost/tasks
     chown system system /dev/cpuset/background/tasks
+    chown system system /dev/cpuset/system-background/tasks
+
+    # set system-background to 0775 so SurfaceFlinger can touch it
+    chmod 0775 /dev/cpuset/system-background
     chmod 0664 /dev/cpuset/foreground/tasks
     chmod 0664 /dev/cpuset/foreground/boost/tasks
     chmod 0664 /dev/cpuset/background/tasks
+    chmod 0664 /dev/cpuset/system-background/tasks
     chmod 0664 /dev/cpuset/tasks
 
 
@@ -264,6 +270,9 @@ on firmware_mounts_complete
 
 # Mount filesystems and start core system services.
 on late-init
+    start fs_mount
+    wait /dev/block/mounted
+
     trigger early-fs
     trigger fs
     trigger post-fs
@@ -571,7 +580,7 @@ on post-fs-data
 
     # Separate location for storing security policy files on data    
     #start SEC_PRODUCT_FEATURE_COMMON_SUPPORT_SE_FOR_ANDROID 
-    mkdir /data/security 0700 system system
+    mkdir /data/security 0710 system system_access
     #end SEC_PRODUCT_FEATURE_COMMON_SUPPORT_SE_FOR_ANDROID
     
     # We restorecon /data when file_contexts is changed(SPD, FOTA, HOME)
@@ -601,19 +610,11 @@ on boot
     # level system server to be able to adjust the kernel OOM driver
     # parameters to match how it is managing things.
     write /proc/sys/vm/overcommit_memory 1
-    write /proc/sys/vm/min_free_kbytes 16384
-    write /proc/sys/vm/user_reserve_kbytes 131072
+    write /proc/sys/vm/min_free_order_shift 4
     chown root system /sys/module/lowmemorykiller/parameters/adj
-    chmod 0220 /sys/module/lowmemorykiller/parameters/adj
-    chown root root /sys/module/lowmemorykiller/parameters/minfree
-    chmod 0660 /sys/module/lowmemorykiller/parameters/minfree
-    write /sys/module/lowmemorykiller/parameters/minfree 18432,20480,22528,25600,28672,32768
-    chown root root /sys/module/lowmemorykiller/parameters/vmpressure_file_min
-    chmod 0660 /sys/module/lowmemorykiller/parameters/vmpressure_file_min
-    write /sys/module/lowmemorykiller/parameters/vmpressure_file_min 40960
-    chmod 0220 /sys/module/lowmemorykiller/parameters/minfree
-    chown root system /sys/module/lowmemorykiller/parameters/nul
-    chmod 0220 /sys/module/lowmemorykiller/parameters/nul
+    chmod 0664 /sys/module/lowmemorykiller/parameters/adj
+    chown root system /sys/module/lowmemorykiller/parameters/minfree
+    chmod 0664 /sys/module/lowmemorykiller/parameters/minfree
     # for BT MAC address
     mkdir /efs/bluetooth 0775 radio system
     # if already exist
@@ -621,8 +622,9 @@ on boot
     chmod 0775 /efs/bluetooth
 
     # Tweak background writeout
-    write /proc/sys/vm/dirty_expire_centisecs 3000
-    write /proc/sys/vm/dirty_background_ratio  5
+    write /proc/sys/vm/dirty_expire_centisecs 200
+    #write /proc/sys/vm/dirty_background_ratio  5
+    #for dirty_background_ratio, just use kernel default value
 
     # Permissions for System Server and daemons.
     chown radio system /sys/android_power/state
@@ -786,8 +788,8 @@ on boot
     export MC_AUTH_TOKEN_PATH /efs
 
     # Assume SMP uses shared cpufreq policy for all CPUs
-    chown system system /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
-    chmod 0660 /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+    chown root root /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+    chmod 0640 /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
 
     chown system system /sys/class/timed_output/vibrator/enable
     chown system system /sys/class/timed_output/vibrator/intensity		
@@ -1119,6 +1121,11 @@ on property:sys.sysctl.tcp_def_init_rwnd=*
 on property:persist.security.mdm.policy=1
     setprop selinux.reload_policy 1
 
+service fs_mount /init.mount.sh
+    user root
+    oneshot
+    disabled
+
 ## Daemon processes to be run by init.
 ##
 # deferred initcall
@@ -1127,16 +1134,6 @@ service sec-sh /system/etc/init.sec.boot.sh
     user root
     oneshot
     
-service uci /sbin/uci
-    user root
-    oneshot
-    disabled
-
-service proploader /init.prop.sh
-    user root
-    oneshot
-    disabled
-
 service sysmon /system/bin/sysmon
     class core
     user root
@@ -1208,7 +1205,7 @@ service adbd /sbin/adbd
 on property:ro.kernel.qemu=1
     start adbd
 
-service lmkd /sbin/lmkd
+service lmkd /system/bin/lmkd
     class core
     critical
     socket lmkd seqpacket 0660 system system
