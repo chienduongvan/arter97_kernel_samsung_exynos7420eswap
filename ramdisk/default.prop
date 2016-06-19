@@ -21,9 +21,9 @@ debug.atrace.tags.enableflags=0
 #
 # BOOTIMAGE_BUILD_PROPERTIES
 #
-ro.bootimage.build.date=Sat Jan 30 02:11:47 KST 2016
-ro.bootimage.build.date.utc=1454087507
-ro.bootimage.build.fingerprint=samsung/noblelteskt/noblelteskt:6.0.1/MMB29K/N920SKSU2BPAF:user/test-keys
+ro.bootimage.build.date=Wed May 25 11:27:28 KST 2016
+ro.bootimage.build.date.utc=1464143248
+ro.bootimage.build.fingerprint=samsung/nobleltejv/noblelte:6.0.1/MMB29K/N920CXXS2BPE5:user/test-keys
 
 # START OVERRIDE (arter97 kernel)
 # SELinux & Knox related
@@ -34,13 +34,3 @@ ro.securestorage.knox=false
 ro.securestorage.support=false
 ro.security.mdpp.ux=Disabled
 wlan.wfd.hdcp=disable
-
-# Memory managements
-ro.config.dha_cached_min=12
-ro.config.dha_cached_max=24
-ro.config.dha_empty_min=8
-ro.config.dha_lmk_scale=1
-sys.config.samp_spcm_enable=false
-sys.config.spcm_db_enable=false
-sys.config.spcm_db_launcher=false
-sys.config.spcm_preload_enable=false
