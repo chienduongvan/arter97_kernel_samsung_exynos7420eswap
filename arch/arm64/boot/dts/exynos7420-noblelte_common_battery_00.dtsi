@@ -236,6 +236,11 @@
 		battery,swelling_low_rechg_voltage = <4050>;
 		battery,swelling_block_time = <600>;
 
+		/* cycle, chg_float_voltage, recharge_condition_vcell, full_condition_vcell, full_condition_soc */
+		battery,age_data = <0 4350 4300 4250 93
+				300 4310 4260 4210 89
+				500 4270 4220 4170 85>;
+
 		io-channels = <&exynos_adc 1>, <&exynos_adc 3>, <&exynos_adc 6>, <&exynos_adc 5>, <&exynos_adc 7>, <&exynos_adc 4>;
 		io-channel-names = "adc-temp", "chg-adc-temp", "in-bat-adc", "discharging-check-adc", "ntc-check-adc", "wpc-temp";
 		#io-channel-cells = <5>;
@@ -346,13 +351,6 @@
 			320  990  60
 			300  995  30
 			0  1000  0 >;
-
-		fuelgauge,age_data = <2820 4350
-			2760 4330
-			2700 4310
-			2640 4290
-			2580 4270
-			2520 4250>;
 	};
 
 	max77833-charger {

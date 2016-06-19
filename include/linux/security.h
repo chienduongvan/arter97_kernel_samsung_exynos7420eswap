@@ -85,7 +85,7 @@ struct timezone;
 #define rocred_uc_set(x,v) atomic_set((&x->usage),v)
 #endif
 
-#define CRED_RO_AREA __attribute__((section (".tima.rkp.initcred")))
+#define RKP_RO_AREA __attribute__((section (".rkp.prot.page")))
 extern int rkp_cred_enable;
 extern char __rkp_ro_start[], __rkp_ro_end[];
 /*Check whether the address belong to Cred Area*/
@@ -101,7 +101,7 @@ static inline u8 rkp_ro_page(unsigned long addr)
 extern int security_integrity_current(void);
 
 #else
-#define CRED_RO_AREA   
+#define RKP_RO_AREA   
 #define security_integrity_current()  0
 #endif /*CONFIG_RKP_KDP*/
 
@@ -1442,11 +1442,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
 struct security_operations {
 	char name[SECURITY_NAME_MAX + 1];
 
-	int (*binder_set_context_mgr) (struct task_struct *mgr);
-	int (*binder_transaction) (struct task_struct *from, struct task_struct *to);
-	int (*binder_transfer_binder) (struct task_struct *from, struct task_struct *to);
-	int (*binder_transfer_file) (struct task_struct *from, struct task_struct *to, struct file *file);
-
 	int (*ptrace_access_check) (struct task_struct *child, unsigned int mode);
 	int (*ptrace_traceme) (struct task_struct *parent);
 	int (*capget) (struct task_struct *target,
@@ -1735,10 +1730,6 @@ extern void __init security_fixup_ops(struct security_operations *ops);
 
 
 /* Security operations */
-int security_binder_set_context_mgr(struct task_struct *mgr);
-int security_binder_transaction(struct task_struct *from, struct task_struct *to);
-int security_binder_transfer_binder(struct task_struct *from, struct task_struct *to);
-int security_binder_transfer_file(struct task_struct *from, struct task_struct *to, struct file *file);
 int security_ptrace_access_check(struct task_struct *child, unsigned int mode);
 int security_ptrace_traceme(struct task_struct *parent);
 int security_capget(struct task_struct *target,
@@ -1914,26 +1905,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  */
 
 static inline int security_init(void)
-{
-	return 0;
-}
-
-static inline int security_binder_set_context_mgr(struct task_struct *mgr)
-{
-	return 0;
-}
-
-static inline int security_binder_transaction(struct task_struct *from, struct task_struct *to)
-{
-	return 0;
-}
-
-static inline int security_binder_transfer_binder(struct task_struct *from, struct task_struct *to)
-{
-	return 0;
-}
-
-static inline int security_binder_transfer_file(struct task_struct *from, struct task_struct *to, struct file *file)
 {
 	return 0;
 }

@@ -3,7 +3,7 @@
  * Contains PCIe related functions that are shared between different driver models (e.g. firmware
  * builds, DHD builds, BMAC builds), in order to avoid code duplication.
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -26,7 +26,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: pcie_core.c 444841 2013-12-21 04:32:29Z $
+ * $Id: pcie_core.c 591285 2015-10-07 11:56:29Z $
  */
 
 #include <bcm_cfg.h>

@@ -1,7 +1,7 @@
 /*
  * Driver O/S-independent utility routines
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmutils.c 563776 2015-06-15 15:51:15Z $
+ * $Id: bcmutils.c 591286 2015-10-07 11:59:26Z $
  */
 
 #include <bcm_cfg.h>
@@ -2059,7 +2059,11 @@ static const char *crypto_algo_names[] = {
 	"UNDEF",
 	"UNDEF",
 #endif /* BCMCCX */
+#ifdef BCMWAPI_WAI
 	"WAPI",
+#else
+	"UNDEF"
+#endif
 	"PMK",
 	"BIP",
 	"AES_GCM",

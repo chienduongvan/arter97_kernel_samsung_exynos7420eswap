@@ -1424,7 +1424,9 @@
 			cal_memory = <1>;		/* 0 : N , 1 : FROM , 2 : EEPROM , 3 : OTP  */
 			read_version = <0>;		/* 0 : SYSFS , 1 : CAMON */
 			core_voltage = <1>;		/* 0 : N , 1 : Y  */
-			upgrade = <1>;			/* 0 : N , 1 : SYSFS , 2 : CAMON */
+			upgrade = <1>;		/* 0 : N , 1 : SYSFS , 2 : CAMON */
+			fw_write = <2>;		/* 0 : N,  1 : OS, 2 : SD, 3 : ALL */
+			fw_dump = <0>;		/* 0 : N , 1 : Y  */
 			companion = <1>;		/* 0 : N , 1 : Y  */
 			ois = <1>;			/* 0 : N , 1 : Y  */
 		};
@@ -1433,7 +1435,9 @@
 			cal_memory = <2>;		/* 0 : N , 1 : FROM , 2 : EEPROM , 3 : OTP  */
 			read_version = <0>;		/* 0 : SYSFS , 1 : CAMON */
 			core_voltage = <0>;		/* 0 : N , 1 : Y  */
-			upgrade = <0>;			/* 0 : N , 1 : SYSFS , 2 : CAMON */
+			upgrade = <0>;		/* 0 : N , 1 : SYSFS , 2 : CAMON */
+			fw_write = <0>;		/* 0 : N,  1 : OS, 2 : SD, 3 : ALL */
+			fw_dump = <0>;		/* 0 : N , 1 : Y  */
 			companion = <1>;		/* 0 : N , 1 : Y  */
 			ois = <0>;			/* 0 : N , 1 : Y  */
 		};
@@ -2242,9 +2246,9 @@
 
 			/* Frequency table */
 			/* for level	:	1_Head 2_Tail*/
-			input_booster,cpu_freqs = <1300000 0>;
+			input_booster,cpu_freqs = <1200000 0>;
 			input_booster,hmp_boost = <1 1>;
-			input_booster,kfc_freqs = <1200000 800000>;
+			input_booster,kfc_freqs = <800000 800000>;
 			input_booster,mif_freqs = <0 0>;
 			input_booster,int_freqs = <0 0>;
 

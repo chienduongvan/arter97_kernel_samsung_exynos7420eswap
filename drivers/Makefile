@@ -159,6 +159,7 @@ obj-$(CONFIG_IIO)		+= iio/
 obj-$(CONFIG_VME_BUS)		+= vme/
 obj-$(CONFIG_IPACK_BUS)		+= ipack/
 obj-$(CONFIG_NTB)		+= ntb/
+obj-$(CONFIG_ANDROID)		+= android/
 
 # Mobicore driver
 obj-$(CONFIG_MOBICORE_DRIVER)   += gud/
@@ -180,7 +181,3 @@ obj-$(CONFIG_ESOC)		+= esoc/
 
 #LED MATRIX FGPA Driver
 obj-$(CONFIG_ICE5_FPGA_LED_MATRIX)	+= ledmatrix/
-
-# SecFilter Driver
-obj-$(CONFIG_SEC_NET_FILTER)	+= secfilter/
-

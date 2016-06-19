@@ -172,6 +172,7 @@
 
 		battery,wireless_cc_cv = <95>;
 		battery,fod_data = <200 37 168 47 174 41 170 46 185 18 181 28>;
+		battery,on_mst_wa = <1>;
 		battery,inbat_voltage = <1>;
 
 		battery,inbat_voltage_table_adc = <2848 2824 2798 2802 2793 2718 2686 2658 2637 2604 2573 2536 2509 2486 2464 2429 2414 2374 2354 2326 2298>;
@@ -278,6 +279,11 @@
 		battery,hw_rev_changed = <1>; /* this only for over rev09 */
 		battery,wpc_cv_call_vout = <5600>;
 		battery,wpc_cc_call_vout = <5600>;
+
+		/* cycle, chg_float_voltage, recharge_condition_vcell, full_condition_vcell, full_condition_soc */
+		battery,age_data = <0 4350 4300 4250 93
+				300 4310 4260 4210 89
+				500 4270 4220 4170 85>;
 
 		io-channels = <&exynos_adc 1>, <&exynos_adc 3>, <&exynos_adc 6>, <&exynos_adc 5>, <&exynos_adc 7>, <&exynos_adc 4>;
 		io-channel-names = "adc-temp", "chg-adc-temp", "in-bat-adc", "discharging-check-adc", "ntc-check-adc", "wpc-temp";
@@ -420,13 +426,6 @@
 			320  990  60
 			300  995  30
 			0  1000  0 >;
-
-		fuelgauge,age_data = <2820 4350
-			2760 4330
-			2700 4310
-			2640 4290
-			2580 4270
-			2520 4250>;
 	};
 
 	max77833-charger {

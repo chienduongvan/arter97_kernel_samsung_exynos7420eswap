@@ -1,7 +1,7 @@
 /*
  * Indices for 802.11 a/b/g/n/ac 1-3 chain symmetric transmit rates
  *
- * Copyright (C) 1999-2015, Broadcom Corporation
+ * Copyright (C) 1999-2016, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
- * $Id: bcmwifi_rates.h 5187 2012-06-29 06:17:50Z $
+ * $Id: bcmwifi_rates.h 591285 2015-10-07 11:56:29Z $
  */
 
 #ifndef _bcmwifi_rates_h_
