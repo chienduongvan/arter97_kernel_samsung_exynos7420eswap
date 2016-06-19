@@ -2,6 +2,7 @@
 # ADDITIONAL_DEFAULT_PROPERTIES
 #
 telephony.lteOnCdmaDevice=0
+persist.eons.enabled=true
 rild.libpath=/system/lib64/libsec-ril.so
 persist.security.ams.enforcing=1
 ro.secure=0
@@ -19,9 +20,9 @@ debug.atrace.tags.enableflags=0
 #
 # BOOTIMAGE_BUILD_PROPERTIES
 #
-ro.bootimage.build.date=Tue May 24 12:09:15 KST 2016
-ro.bootimage.build.date.utc=1464059355
-ro.bootimage.build.fingerprint=samsung/zenltejv/zenlte:6.0.1/MMB29K/G928CXXU2BPE8:user/test-keys
+ro.bootimage.build.date=Fri Apr 1 13:50:47 KST 2016
+ro.bootimage.build.date.utc=1459486247
+ro.bootimage.build.fingerprint=samsung/zenltetmo/zenltetmo:6.0.1/MMB29K/G928TUVU2DPD1:user/test-keys
 
 # START OVERRIDE (arter97 kernel)
 # SELinux & Knox related
