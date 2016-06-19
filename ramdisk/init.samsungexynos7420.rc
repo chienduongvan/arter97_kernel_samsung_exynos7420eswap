@@ -530,6 +530,7 @@ on fs
     chown system radio /sys/class/lcd/panel/lcd_type
     chown system system /sys/class/lcd/panel/siop_enable
     chown system system /sys/class/lcd/panel/temperature
+    chown system radio /sys/class/lcd/panel/mcd_mode
     chown system media_rw /sys/class/backlight/panel/weakness_hbm_comp
     chown system system /sys/class/lcd/panel/ldu_correction
 
