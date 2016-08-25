@@ -483,7 +483,6 @@ on fs
     chown system radio /sys/class/sec/sec_touchkey/touch_sensitivity
     chown system radio /sys/class/sec/sec_touchkey/glove_mode
     chown system radio /sys/class/sec/sec_touchkey/flip_mode
-    chown system radio /sys/class/sec/sec_touchkey/keyboard_mode
     chown system radio /sys/class/sec/sec_touchkey/boost_level
     chown system system /sys/class/sec/sec_touchkey/input/enabled
 
@@ -523,7 +522,6 @@ on fs
     chown system system /sys/class/lcd/panel/temperature
     chown system radio /sys/class/lcd/panel/mcd_mode
     chown system media_rw /sys/class/backlight/panel/weakness_hbm_comp	
-    chown system system /sys/class/lcd/panel/ldu_correction
 
 # Permissions for LCD HMT
     chown system system /sys/class/lcd/panel/hmt_on
@@ -539,7 +537,6 @@ on fs
     chown system system /sys/class/mdnie/mdnie/accessibility
     chown system system /sys/class/mdnie/mdnie/auto_brightness
     chown system system /sys/class/mdnie/mdnie/sensorRGB
-    chown system system /sys/class/mdnie/mdnie/mdnie_ldu
 
 # Permissions for System LSI NFC
 # NFC : Permissions for NFC
