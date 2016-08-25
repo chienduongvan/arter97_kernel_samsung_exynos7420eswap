@@ -2,6 +2,11 @@ import init.gps.rc
 
 on post-fs-data
 
+# HD-DMB CAS Key Data
+    mkdir /data/.dmbca 0771
+    chown media system /data/.dmbca
+    chmod 0771 /data/.dmbca
+
 # SKT PM PlayReady
     mkdir /data/playready 771 system skt
     chown system skt /data/playready
